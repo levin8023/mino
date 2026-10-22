@@ -12,6 +12,7 @@ Date: 2026-10-22 (Asia/Shanghai). Preview version: 0.2.0.
 - Local ad-hoc `codesign --verify --strict`: passed. This is not Developer ID signing or notarization.
 - ZIP SHA-256 generation and validation: passed on the initial archive.
 - Real AppKit/SwiftUI settings window launched and inspected on the host, including the main, preferences and about pages. No Accessibility/Screen Recording prompt was requested by Mino.
+- Current 0.2.0 UI: the always-hidden preference switch was enabled successfully, creating the optional divider and entering arranging mode. The user confirmed the actual main-icon right-click menu contains Help, Settings, Quit, and the temporary always-hidden reveal action. Menu-bar automation could not click the overflow-hosted icon because the system exposed its old off-screen coordinates; this limitation is not counted as a passing automated interaction test.
 - Status-item smoke diagnostic: both items created. This host initially placed the divider to the right of the control; **the layout guard correctly refused normal collapse and showed recovery guidance**. Initial placement is not certified as correct automatically.
 - Explicit geometry probe: the divider accepted a 10,000-point length and returned to 22 points after a one-second test. This does not establish that all third-party items were hidden or restored correctly.
 - Follow-up investigation confirmed macOS 27 has native menu bar overflow. The current version uses a bounded spacer budget there; the earlier 10,000-point probe describes the initial diagnostic, not the current macOS 27 policy.
@@ -26,3 +27,5 @@ Date: 2026-10-22 (Asia/Shanghai). Preview version: 0.2.0.
 - Apple Developer ID signature, notarization, trademark clearance, and Homebrew distribution.
 
 This is a development preview, not a compatibility certification. Do not turn checklist items in TESTING.md into passing claims without observing them. The per-tag GitHub Actions run is the authoritative result for the artifact it produces; inspect it separately from this local record.
+
+For v0.2.0, both the [CI run](https://github.com/levin8023/mino/actions/runs/39763627715) and [release run](https://github.com/levin8023/mino/actions/runs/39763640388) passed. The downloaded release ZIP's SHA-256 and extracted app's ad-hoc signature were independently checked locally. This verifies packaging, not Apple notarization or every third-party menu-bar layout.
