@@ -1,3 +1,22 @@
+# 0.2.1 compatibility verification
+
+Date: 2026-10-22 (Asia/Shanghai). Host: Apple silicon, macOS 27.0.1, Swift 6.4 Command Line Tools.
+
+- Core regression suite: **12/12 passed**, including a replacement native-overflow check that forbids width inflation for normal, collapsed, invalid-display and multiple-section inputs.
+- Optimized arm64 build: passed; Info.plist/privacy manifest lint and ad-hoc signature verification passed.
+- Real AppKit startup diagnostic: `control=true, divider=false, alwaysDivider=false, nativeOverflow=true, layoutWarning=false`. This ran with existing always-hidden preferences, confirming the compatibility guard creates no divider.
+- Native settings UI launched as version 0.2.1. Chinese overview and live English switch were observed; English overview, preferences, and help were inspected. Controls fit the settings window. Unsupported section/auto-hide/shortcut controls are absent on macOS 27. The retained icon artwork source was not changed.
+- The in-app system-settings button opened the actual Menu Bar pane, including Allow in Menu Bar. No system switches were changed.
+- No claim of working macOS 27 third-party hiding, per-item grouping, a single-control folding boundary, or disabling native overflow. Those remain unavailable, rather than being counted as passing tests.
+
+- Universal arm64 + x86_64 package built; `lipo -archs` reports both. ZIP SHA-256 and final bundle ad-hoc signature verified. The installed toolchain still warns about its arm64-only compatibility-pack archive when cross-linking x86_64; no Intel runtime verification is claimed.
+- English language selection persisted across app restart. The UI test then restored the original System default choice; the final control label returned to Chinese.
+- The final universal app starts headlessly after its compatibility notice has been acknowledged. A single main control was exposed by the menu bar host. Automated right-click remained blocked by stale off-screen AX coordinates, so the new context-menu language submenu is not counted as a passing end-to-end UI test.
+
+Remote build/release checks are reported by the per-tag Actions run. Earlier observations below are historical and do not describe the 0.2.1 native-overflow behavior.
+
+---
+
 # Preview verification record
 
 Date: 2026-10-22 (Asia/Shanghai). Preview version: 0.2.0.

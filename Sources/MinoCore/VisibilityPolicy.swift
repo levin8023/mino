@@ -40,17 +40,12 @@ public struct VisibilityPolicy: Sendable {
         return true
     }
 
-    /// A wide spacer makes items to its left overflow. macOS decides which fit.
+    /// The legacy spacer technique is disabled with native overflow: inflating
+    /// status items there leaves a gap and does not reliably hide other items.
     public static func spacerLength(isCollapsed: Bool, screenWidths: [Double],
                                     usesNativeOverflow: Bool = false, sectionCount: Int = 1) -> Double {
-        guard isCollapsed else { return 22 }
+        guard isCollapsed && !usesNativeOverflow else { return 22 }
         let validWidths = screenWidths.filter { $0.isFinite && $0 > 0 }
-        if usesNativeOverflow {
-            // Newer menu bars own overflow. Keep our total spacer budget below
-            // half the smallest display instead of creating an off-screen mega-item.
-            let width = validWidths.min() ?? 1440
-            return max(22, width * 0.45 / Double(max(1, sectionCount)))
-        }
         return max(10_000, validWidths.reduce(0, +) * 2)
     }
 }

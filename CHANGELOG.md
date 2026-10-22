@@ -2,6 +2,16 @@
 
 This project follows [Semantic Versioning](https://semver.org/) for its own releases. Pre-1.0 interfaces and behavior may change.
 
+## 0.2.1 — 2026-10-22 (compatibility preview)
+
+- Keep the original three-bar icon unchanged.
+- On macOS 27+, create only the main control: remove dot/lock dividers and all inflated spacer widths.
+- Disable unsupported hiding, section controls, auto-hide, and shortcut registration there; clicking opens settings and state reads Managed by macOS.
+- Preserve older preferences without applying them on the incompatible system.
+- Add language selection to every settings page and the context menu, plus explicit bilingual README and usage-guide links.
+- Add a shortcut to the system's app-level menu bar settings; document that it differs from collapsible grouping.
+- Per-item visible/collapsed/always-hidden selection and a single-control folding boundary are still unimplemented.
+
 ## 0.2.0 — 2026-10-22 (preview)
 
 - Compact original three-bar menu icon, with its name in the tooltip and menu.

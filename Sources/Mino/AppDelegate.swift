@@ -19,7 +19,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     private let smokeTest = CommandLine.arguments.contains("--smoke-test") || CommandLine.arguments.contains("--integration-test")
 
     private var now: TimeInterval { ProcessInfo.processInfo.systemUptime }
-    private var usesNativeOverflow: Bool { ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 }
+    private var usesNativeOverflow: Bool { model.usesNativeOverflow }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let mainMenu = NSMenu()
@@ -32,7 +32,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         mainMenu.addItem(applicationItem)
         NSApp.mainMenu = mainMenu
         policy = VisibilityPolicy(preferences: model.preferences, now: now)
-        startupCollapsed = policy.isCollapsed && !smokeTest
+        startupCollapsed = model.supportsSectionHiding && policy.isCollapsed && !smokeTest
         policy.setCollapsed(false, now: now)
         createStatusItems()
         model.onToggle = { [weak self] in self?.toggle() }
@@ -52,10 +52,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         // Let AppKit restore saved positions before deciding whether collapse is safe.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             guard let self else { return }
-            self.checkLayout()
+            if self.model.supportsSectionHiding { self.checkLayout() }
             if self.startupCollapsed { self.setCollapsed(true) }
             if self.smokeTest {
-                print("Mino smoke test: control=\(self.control?.button != nil), divider=\(self.divider?.button != nil), layoutWarning=\(self.model.layoutWarning)")
+                print("Mino smoke test: control=\(self.control?.button != nil), divider=\(self.divider?.button != nil), alwaysDivider=\(self.alwaysHiddenDivider?.button != nil), nativeOverflow=\(self.usesNativeOverflow), layoutWarning=\(self.model.layoutWarning)")
                 print("Control window: \(String(describing: self.control?.button?.window?.frame)); bounds: \(String(describing: self.control?.button?.bounds))")
                 print("Divider window: \(String(describing: self.divider?.button?.window?.frame)); bounds: \(String(describing: self.divider?.button?.bounds))")
                 print("Converted frames: control=\(String(describing: self.statusFrame(self.control))), divider=\(String(describing: self.statusFrame(self.divider)))")
@@ -66,6 +66,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func probeCollapse() {
+        guard model.supportsSectionHiding else {
+            print("Native overflow: no spacer created; collapse probe skipped.")
+            NSApp.terminate(nil)
+            return
+        }
         // Explicit test mode only: always restore after this brief geometry probe.
         policy.setCollapsed(true, now: now)
         applyVisibility()
@@ -95,8 +100,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
             button.setAccessibilityIdentifier("mino.control")
         }
-        createDivider()
-        if model.preferences.alwaysHiddenEnabled { createAlwaysHiddenDivider() }
+        if model.supportsSectionHiding {
+            createDivider()
+            if model.preferences.alwaysHiddenEnabled { createAlwaysHiddenDivider() }
+        }
         applyVisibility()
     }
 
@@ -147,7 +154,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func preferencesChanged() {
-        if model.preferences.alwaysHiddenEnabled && alwaysHiddenDivider == nil {
+        if model.supportsSectionHiding && model.preferences.alwaysHiddenEnabled && alwaysHiddenDivider == nil {
             model.isArranging = true
             policy?.setCollapsed(false, now: now)
             createAlwaysHiddenDivider()
@@ -157,7 +164,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             alwaysHiddenDivider = nil
             policy?.setCollapsed(false, now: now)
         }
-        if model.preferences.hotkeyEnabled {
+        if model.supportsSectionHiding && model.preferences.hotkeyEnabled {
             let status = hotkey.register()
             model.hotkeyError = status == noErr ? nil : model.t(
                 "快捷键注册失败（\(status)），可能已被其他应用占用。可关闭快捷键后重新启用。",
@@ -167,12 +174,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             model.hotkeyError = nil
         }
         policy?.recordActivity(now: now)
+        NSApp.mainMenu?.items.first?.submenu?.items.first?.title = model.t("退出 Mino", "Quit Mino")
         if policy != nil { applyVisibility() }
     }
 
     private func toggle() { setCollapsed(!policy.isCollapsed) }
 
     private func setCollapsed(_ value: Bool) {
+        guard model.supportsSectionHiding else {
+            policy.setCollapsed(false, now: now)
+            applyVisibility()
+            showSettings()
+            return
+        }
         if value && !policy.isCollapsed {
             checkLayout()
             guard !model.layoutWarning else {
@@ -200,8 +214,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         let alwaysLength = CGFloat(VisibilityPolicy.spacerLength(isCollapsed: hideAlways,
             screenWidths: widths, usesNativeOverflow: usesNativeOverflow, sectionCount: sections))
         if alwaysHiddenDivider?.length != alwaysLength { alwaysHiddenDivider?.length = alwaysLength }
-        let state = model.t(policy.isCollapsed ? "已收起" : "已展开", policy.isCollapsed ? "Hidden" : "Visible")
-        control?.button?.toolTip = model.t("Mino · \(state) · 左键切换，右键说明/设置/退出", "Mino · \(state) · Click to toggle; right-click for help, settings, quit")
+        let state = usesNativeOverflow ? model.t("由系统管理", "Managed by macOS")
+            : model.t(policy.isCollapsed ? "已收起" : "已展开", policy.isCollapsed ? "Hidden" : "Visible")
+        control?.button?.toolTip = usesNativeOverflow
+            ? model.t("Mino · 点击打开设置，右键说明/设置/退出", "Mino · Click for settings; right-click for help, settings, quit")
+            : model.t("Mino · \(state) · 左键切换，右键说明/设置/退出", "Mino · \(state) · Click to toggle; right-click for help, settings, quit")
         control?.button?.setAccessibilityLabel("Mino · \(state)")
         divider?.button?.toolTip = model.t("Mino 分隔符 · 按住 ⌘ 拖到 Mino 左边 · 右键打开菜单", "Mino divider · Hold ⌘ and drag left of Mino · Right-click for menu")
         alwaysHiddenDivider?.button?.toolTip = model.t("Mino 始终隐藏分隔符 · 放在普通分隔符左侧 · 日常点击不会展开此区", "Mino always-hidden divider · Place left of the normal divider · Ordinary toggles never reveal this section")
@@ -248,7 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
 
     private func refreshAutoHideTimer() {
         guard policy != nil else { return }
-        let shouldRun = !smokeTest && !policy.isCollapsed && model.preferences.completedSetup
+        let shouldRun = model.supportsSectionHiding && !smokeTest && !policy.isCollapsed && model.preferences.completedSetup
             && model.preferences.autoHide && !model.isArranging && !menuTracking
             && !(settingsWindow?.isVisible ?? false)
         guard shouldRun else {
@@ -266,12 +283,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func arrange() {
+        guard model.supportsSectionHiding else { showSettings(); return }
         model.isArranging = true
         setCollapsed(false)
         settingsWindow?.orderOut(nil)
     }
 
     private func finishSetup() {
+        guard model.supportsSectionHiding else { showSettings(); return }
         checkLayout()
         guard !model.layoutWarning else { showSettings(); return }
         model.preferences.completedSetup = true
@@ -280,7 +299,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     private func revealAlwaysHidden() {
-        guard model.preferences.alwaysHiddenEnabled else { return }
+        guard model.supportsSectionHiding && model.preferences.alwaysHiddenEnabled else { return }
         if policy.isAlwaysHiddenRevealed { policy.setCollapsed(false, now: now) }
         else { policy.revealAlwaysHidden(now: now) }
         applyVisibility()
@@ -327,6 +346,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     func windowWillClose(_ notification: Notification) {
+        if usesNativeOverflow && !model.preferences.completedSetup { model.preferences.completedSetup = true }
         policy.recordActivity(now: now)
         DispatchQueue.main.async { [weak self] in self?.refreshAutoHideTimer() }
     }
@@ -340,20 +360,35 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         heading.isEnabled = false
         menu.addItem(heading)
         menu.addItem(.separator())
-        add(model.t(policy.isCollapsed ? "展开图标" : "收起图标", policy.isCollapsed ? "Show items" : "Hide items"),
-            action: #selector(toggleFromMenu), to: menu)
-        add(model.t("整理图标…", "Arrange items…"), action: #selector(arrangeFromMenu), to: menu)
-        if model.preferences.alwaysHiddenEnabled {
-            add(model.t(policy.isAlwaysHiddenRevealed ? "重新隐藏始终隐藏区" : "临时显示始终隐藏区…",
-                        policy.isAlwaysHiddenRevealed ? "Rehide always-hidden section" : "Temporarily show always-hidden section…"),
-                action: #selector(revealAlwaysFromMenu), to: menu)
-        }
-        if model.isArranging || !model.preferences.completedSetup {
-            add(model.t("完成整理并收起", "Finish arranging and hide"), action: #selector(finishFromMenu), to: menu)
+        if model.supportsSectionHiding {
+            add(model.t(policy.isCollapsed ? "展开图标" : "收起图标", policy.isCollapsed ? "Show items" : "Hide items"),
+                action: #selector(toggleFromMenu), to: menu)
+            add(model.t("整理图标…", "Arrange items…"), action: #selector(arrangeFromMenu), to: menu)
+            if model.preferences.alwaysHiddenEnabled {
+                add(model.t(policy.isAlwaysHiddenRevealed ? "重新隐藏始终隐藏区" : "临时显示始终隐藏区…",
+                            policy.isAlwaysHiddenRevealed ? "Rehide always-hidden section" : "Temporarily show always-hidden section…"),
+                    action: #selector(revealAlwaysFromMenu), to: menu)
+            }
+            if model.isArranging || !model.preferences.completedSetup {
+                add(model.t("完成整理并收起", "Finish arranging and hide"), action: #selector(finishFromMenu), to: menu)
+            }
+        } else {
+            add(model.t("系统菜单栏设置…", "macOS Menu Bar Settings…"), action: #selector(openSystemSettings), to: menu)
         }
         menu.addItem(.separator())
         add(model.t("使用说明…", "How to use Mino…"), action: #selector(showHelp), to: menu)
         add(model.t("设置…", "Settings…"), action: #selector(showSettings), key: ",", to: menu)
+        let language = NSMenuItem(title: "语言 / Language", action: nil, keyEquivalent: "")
+        let languages = NSMenu()
+        for (title, value) in [(model.t("跟随系统", "System default"), AppLanguage.system), ("简体中文", .simplifiedChinese), ("English", .english)] {
+            let entry = NSMenuItem(title: title, action: #selector(selectLanguage(_:)), keyEquivalent: "")
+            entry.target = self
+            entry.representedObject = value.rawValue
+            entry.state = model.preferences.language == value ? .on : .off
+            languages.addItem(entry)
+        }
+        language.submenu = languages
+        menu.addItem(language)
         menu.addItem(.separator())
         add(model.t("退出 Mino", "Quit Mino"), action: #selector(quit), key: "q", to: menu)
         // Present directly: right-clicking must not re-enter the button's own action.
@@ -376,6 +411,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     @objc private func arrangeFromMenu() { arrange() }
     @objc private func finishFromMenu() { finishSetup() }
     @objc private func revealAlwaysFromMenu() { revealAlwaysHidden() }
+    @objc private func openSystemSettings() { model.openMenuBarSettings() }
+    @objc private func selectLanguage(_ sender: NSMenuItem) {
+        guard let rawValue = sender.representedObject as? String, let language = AppLanguage(rawValue: rawValue) else { return }
+        model.preferences.language = language
+    }
     @objc private func quit() { NSApp.terminate(nil) }
 
     func applicationWillTerminate(_ notification: Notification) {

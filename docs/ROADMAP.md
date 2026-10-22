@@ -1,19 +1,22 @@
 # Roadmap
 
-## Before a stable 1.0
+## Current blocker: macOS 27
 
-- Real-device checks on macOS 13–current, Intel, notched Apple silicon laptops, multi-display, Spaces, full screen, and display hot-plug.
-- Verify Command-drag persistence and overflow behavior on those systems.
-- Developer ID signing and notarized release pipeline when credentials are available.
-- Configurable shortcut and improved keyboard/accessibility audit.
-- Naming/trademark review before broader promotion.
+Native overflow invalidates the spacer-based hiding approach. Version 0.2.1 disables it entirely on macOS 27+ to avoid gaps and misleading success states. The system's documented controls provide app-level icon visibility but no separate overflow switch or supported cross-app per-item visibility API.
 
-## Candidate features
+## Required before claiming full icon management
 
-- A separate panel for icons obscured by the notch. Requires a design and permission/API investigation; no implementation promise yet.
-- Per-item rules and richer placement feedback.
-- Optional hover reveal and richer arrangement feedback.
-- Signed update delivery with explicit user controls.
-- Homebrew cask after stable, verified downloads exist.
+- Verify a working macOS 27 backend before exposing per-item controls.
+- Use a single visible Mino boundary, with no manually arranged dividers.
+- Let users choose visible, collapsed, or always hidden per item in settings; reflect actual applied state and failures.
+- Preserve access to each item, including on notched and multiple displays.
+- Evaluate narrowly scoped optional permissions only when a working implementation needs them; update privacy documentation before adding access.
 
-The first principle is a small local utility. Proposed features that require screen capture, Accessibility, private APIs, remote services, or extra dependencies must document why and how those costs are justified.
+## Further work
+
+- Runtime verification on supported earlier systems and Intel hardware.
+- Custom shortcuts, keyboard navigation, and accessibility checks.
+- Developer ID signing and notarization when a publisher identity is available.
+- Separate icon panel, search, and opt-in updates after the core backend works.
+
+These are plans, not available features. English and Chinese interface/readme selection are available now.

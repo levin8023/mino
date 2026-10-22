@@ -68,11 +68,14 @@ let visibilityChecks: [Check] = [
         try expect(policy.tick(now: 12, preferences: preferences, interactionActive: false))
         try expect(policy.isCollapsed && !policy.isAlwaysHiddenRevealed)
     },
-    Check("Native overflow spacer budget remains below half a display") {
-        let one = VisibilityPolicy.spacerLength(isCollapsed: true, screenWidths: [1512, 1920], usesNativeOverflow: true)
-        let two = VisibilityPolicy.spacerLength(isCollapsed: true, screenWidths: [1512, 1920], usesNativeOverflow: true, sectionCount: 2)
-        try expect(one > 22 && one < 1512 / 2)
-        try expect(two > 22 && two * 2 < 1512 / 2)
-        try expect(VisibilityPolicy.spacerLength(isCollapsed: false, screenWidths: [1512], usesNativeOverflow: true) == 22)
+    Check("Native overflow never inflates a status item") {
+        for widths: [Double] in [[], [1512, 1920], [.nan, .infinity, -10]] {
+            for collapsed in [false, true] {
+                for sections in [0, 1, 2, 100] {
+                    try expect(VisibilityPolicy.spacerLength(isCollapsed: collapsed, screenWidths: widths,
+                        usesNativeOverflow: true, sectionCount: sections) == 22)
+                }
+            }
+        }
     }
 ]

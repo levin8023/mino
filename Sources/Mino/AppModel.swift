@@ -35,7 +35,16 @@ final class AppModel: ObservableObject {
     }
 
     var chinese: Bool { preferences.language.usesChinese() }
+    var usesNativeOverflow: Bool { ProcessInfo.processInfo.operatingSystemVersion.majorVersion >= 27 }
+    var supportsSectionHiding: Bool { !usesNativeOverflow }
     func t(_ chinese: String, _ english: String) -> String { self.chinese ? chinese : english }
+
+    func openMenuBarSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.ControlCenter-Settings.extension") else { return }
+        if !NSWorkspace.shared.open(url) {
+            NSWorkspace.shared.open(URL(fileURLWithPath: "/System/Applications/System Settings.app"))
+        }
+    }
 
     func refreshLoginStatus() {
         launchAtLogin = SMAppService.mainApp.status == .enabled

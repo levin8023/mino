@@ -14,11 +14,14 @@ struct SettingsView: View {
             Divider()
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    languageChoice
                     switch model.selectedTab {
                     case 1: behavior
                     case 2: about
-                    case 3: help
-                    default: overview
+                    case 3:
+                        if model.usesNativeOverflow { nativeHelp } else { help }
+                    default:
+                        if model.usesNativeOverflow { nativeOverview } else { overview }
                     }
                 }
                 .padding(32)
@@ -46,11 +49,12 @@ struct SettingsView: View {
             navigationRow(2, "info.circle", model.t("关于 Mino", "About Mino"))
             Spacer()
             HStack(spacing: 6) {
-                Circle().fill(model.isCollapsed ? accent : .green).frame(width: 6, height: 6)
-                Text(model.t(model.isCollapsed ? "图标已收起" : "图标已展开", model.isCollapsed ? "Items hidden" : "Items visible"))
+                Circle().fill(model.usesNativeOverflow ? .orange : (model.isCollapsed ? accent : .green)).frame(width: 6, height: 6)
+                Text(model.usesNativeOverflow ? model.t("由 macOS 管理", "Managed by macOS")
+                    : model.t(model.isCollapsed ? "图标已收起" : "图标已展开", model.isCollapsed ? "Items hidden" : "Items visible"))
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }.padding(.leading, 10)
-            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.0") · MIT")
+            Text("v\(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0.2.1") · MIT")
                 .font(.system(size: 10, design: .monospaced)).foregroundStyle(.tertiary)
                 .padding(.leading, 10).padding(.top, 6)
         }
@@ -71,6 +75,71 @@ struct SettingsView: View {
             .background(model.selectedTab == index ? accent.opacity(0.10) : .clear, in: RoundedRectangle(cornerRadius: 9))
             .contentShape(Rectangle())
         }.buttonStyle(.plain)
+    }
+
+    private var languageChoice: some View {
+        HStack {
+            Image(systemName: "globe").foregroundStyle(.secondary)
+            Text("语言 / Language").font(.system(size: 11)).foregroundStyle(.secondary)
+            Spacer()
+            Picker("语言 / Language", selection: $model.preferences.language) {
+                Text(model.t("跟随系统", "System default")).tag(AppLanguage.system)
+                Text("简体中文").tag(AppLanguage.simplifiedChinese)
+                Text("English").tag(AppLanguage.english)
+            }
+            .labelsHidden().frame(width: 150)
+            .accessibilityIdentifier("mino.language")
+        }
+    }
+
+    private var nativeOverview: some View {
+        Group {
+            heading(model.t("一个图标，不留大空隙。", "One icon. No oversized gaps."),
+                    model.t("保留三竖条图标，已停用不兼容的分隔符。", "The three-bar icon stays. Incompatible spacers are disabled."))
+            notice(model.t("macOS 27 兼容性限制", "macOS 27 compatibility limits"),
+                   model.t("当前系统下，Mino 尚不能可靠地折叠其他应用的图标。现已移除额外分隔符，不再通过撑宽制造收纳空间。点击 Mino 打开设置，右键可查看说明或退出。",
+                           "Mino cannot reliably collapse other apps’ icons on this system yet. Extra separators have been removed and no space is reserved for hiding. Click Mino for settings; right-click for help or quit."), icon: "info.circle")
+            VStack(alignment: .leading, spacing: 16) {
+                Label(model.t("管理菜单栏图标", "Manage menu bar icons"), systemImage: "menubar.rectangle")
+                    .font(.system(size: 16, weight: .semibold))
+                Text(model.t("在系统设置 → 菜单栏 →「允许在菜单栏中」选择哪些应用可以显示图标。这会关闭该应用的菜单栏入口，不等同于可随时展开的折叠分组。",
+                             "In System Settings → Menu Bar → Allow in Menu Bar, choose which apps may show icons. Disabling an app removes its menu bar entry; it does not create a collapsible group."))
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                Button(model.t("打开系统菜单栏设置", "Open macOS Menu Bar Settings")) { model.openMenuBarSettings() }
+                    .buttonStyle(.borderedProminent)
+                    .accessibilityIdentifier("mino.systemSettings")
+            }.card()
+            VStack(alignment: .leading, spacing: 12) {
+                Label(model.t("折叠 / 始终隐藏", "Collapse / Always hide"), systemImage: "eye.slash")
+                    .font(.system(size: 14, weight: .semibold))
+                Text(model.t("在 Mino 内逐项选择常驻、折叠或始终隐藏尚未实现。旧版分区和自动收起在 macOS 27 上均已停用；原有偏好会保留。",
+                             "Per-item choices for visible, collapsed, and always hidden are not implemented yet. Legacy sections and automatic hiding are disabled on macOS 27; existing preferences are preserved."))
+                    .font(.system(size: 12)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }.card()
+        }
+    }
+
+    private var nativeHelp: some View {
+        Group {
+            heading(model.t("Mino 使用说明", "Using Mino"),
+                    model.t("菜单栏里的三根高低竖条就是 Mino。", "The three rising bars in your menu bar are Mino."))
+            VStack(alignment: .leading, spacing: 18) {
+                step("1", model.t("点击打开设置", "Click for settings"),
+                     model.t("macOS 27 上折叠功能暂不可用，点击不会改变其他图标的显隐。", "Collapsing is currently unavailable on macOS 27. Clicking does not change other icons’ visibility."))
+                step("2", model.t("右键打开菜单", "Right-click for the menu"),
+                     model.t("提供使用说明、系统菜单栏设置、Mino 设置、语言和退出。", "Access help, macOS Menu Bar Settings, Mino settings, language, and quit."))
+                step("3", model.t("自行选择语言", "Choose your language"),
+                     model.t("页面顶部或右键菜单均可选择简体中文、English 或跟随系统，立即生效并保存在本机。", "Use the top of any page or the context menu to select 简体中文, English, or System default. Changes apply immediately and stay on this Mac."))
+            }.card()
+            notice(model.t(">> 是系统入口", ">> belongs to macOS"),
+                   model.t("空间不足时 macOS 自动收纳图标。Apple 公开设置未提供单独关闭 >> 的选项。减少常驻图标可缓解收纳；Mino 不能保证系统入口消失，也不能将自己固定在其外。",
+                           "macOS collects icons when space runs out. Apple’s documented settings provide no separate switch for >>. Reducing visible icons can relieve overflow; Mino cannot guarantee the indicator disappears or pin itself outside it."), icon: "menubar.arrow.up.rectangle")
+            HStack {
+                Link("README · 简体中文", destination: URL(string: "https://github.com/levin8023/mino/blob/main/README.md")!)
+                Spacer()
+                Link("README · English", destination: URL(string: "https://github.com/levin8023/mino/blob/main/README.en.md")!)
+            }.font(.system(size: 12))
+        }
     }
 
     private var overview: some View {
@@ -164,6 +233,7 @@ struct SettingsView: View {
         Group {
             heading(model.t("按你的习惯来。", "Quietly, your way."),
                     model.t("几个简单选项，让 Mino 自然融入日常。", "A few thoughtful defaults, made to fit your day."))
+            if model.supportsSectionHiding {
             VStack(alignment: .leading, spacing: 0) {
                 setting(model.t("始终隐藏分区", "Always-hidden section"), model.t("日常展开时仍收起；开启后请重新整理锁形分隔符。", "Stays hidden during ordinary toggles. Arrange the lock divider after enabling.")) {
                     Toggle("", isOn: $model.preferences.alwaysHiddenEnabled).labelsHidden().toggleStyle(.switch)
@@ -187,11 +257,14 @@ struct SettingsView: View {
                     Toggle("", isOn: $model.preferences.startCollapsed).labelsHidden().toggleStyle(.switch)
                 }
             }.card()
+            }
             VStack(alignment: .leading, spacing: 0) {
+                if model.supportsSectionHiding {
                 setting(model.t("全局快捷键", "Global shortcut"), model.t("按 ⌃ ⌥ M 展开或收起图标。", "Press ⌃ ⌥ M to show or hide items.")) {
                     Toggle("", isOn: $model.preferences.hotkeyEnabled).labelsHidden().toggleStyle(.switch)
                 }
                 Divider()
+                }
                 setting(model.t("登录时启动", "Launch at login"), model.t("由 macOS 登录项管理，可随时关闭。", "Managed by macOS Login Items. Always optional.")) {
                     Toggle("", isOn: Binding(get: { model.launchAtLogin }, set: model.setLaunchAtLogin))
                         .labelsHidden().toggleStyle(.switch)
@@ -212,9 +285,16 @@ struct SettingsView: View {
             if model.loginNeedsApproval {
                 Button(model.t("在系统设置中批准登录项", "Approve in System Settings")) { SMAppService.openSystemSettingsLoginItems() }
             }
+            if model.supportsSectionHiding {
             Text(model.t("使用图标时自动收起会暂停：指针位于屏幕顶部 400 点范围内、鼠标按下、整理模式或本窗口打开时。",
                          "Auto-hide pauses while the pointer is within 400 points of the screen top, a mouse button is held, arranging is active, or this window is open."))
                 .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+            }
+            if model.usesNativeOverflow {
+                notice(model.t("折叠设置暂不可用", "Hiding settings unavailable"),
+                       model.t("macOS 27 上停用分区、自动收起和折叠快捷键。可在「菜单栏」页面打开系统设置管理应用图标。",
+                               "Sections, auto-hide, and the hiding shortcut are disabled on macOS 27. Open system settings from the Menu bar page to manage app icons."))
+            }
         }
     }
 
@@ -234,8 +314,8 @@ struct SettingsView: View {
                 Label(model.t("设置仅保存在本机", "Preferences stay on your Mac"), systemImage: "internaldrive")
             }.font(.system(size: 13)).card()
             notice(model.t("当前版本的边界", "Early release, clear limits"),
-                   model.t("分隔符让左侧图标溢出；macOS 27 的系统 >> 仍可收纳或显示它们，包括 Mino 自己。暂不支持独立图标浮窗、图标搜索或自动搬移第三方图标。",
-                           "Dividers overflow items on their left. macOS 27's system overflow can still collect or reveal them, including Mino itself. Separate icon panels, search, and automatic rearrangement are not available yet."), icon: "sparkles")
+                   model.t("macOS 27 上已停用分隔符和折叠功能。其他系统的分区模式仍属实验功能。暂不支持在 Mino 内逐项设置显隐、独立图标浮窗、图标搜索或自动搬移第三方图标。",
+                           "Spacers and hiding are disabled on macOS 27. Section mode on earlier systems remains experimental. In-app per-item visibility, separate icon panels, search, and automatic rearrangement are not available yet."), icon: "info.circle")
             Text(model.t("Mino 独立开发，采用 MIT 许可证。名称尚未进行商标清查。",
                          "Mino is independently developed and MIT licensed. The name has not been trademark-cleared."))
                 .font(.system(size: 11)).foregroundStyle(.secondary)

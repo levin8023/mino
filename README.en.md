@@ -1,41 +1,52 @@
 # Mino
 
-**A little less. Just right.**
+[简体中文](README.md) | [**English**](README.en.md) · [Preview downloads](https://github.com/levin8023/mino/releases) · [MIT](LICENSE)
 
-A free, open-source, native macOS menu bar manager. Keep essential items visible and tuck occasional items behind a divider.
+A free, open-source, native macOS menu bar utility. The main button keeps its original three rising bars, without an app-name label.
 
-[简体中文](README.md) · [Preview downloads](https://github.com/levin8023/mino/releases) · [Contributing](CONTRIBUTING.md) · [MIT](LICENSE)
+**0.2.1 is a compatibility-fix preview. Full icon management is not implemented.** The deployment target is macOS 13+; see the [verification record](docs/VERIFICATION.md) for actual testing.
 
-**0.2.0 is an early preview.** macOS 13+ is the deployment target; not every OS and display combination has been tested.
+## Compatibility
 
-macOS 27 has its own system overflow entry, which can collect Mino too. Arrange the dividers and control with Command-drag first. End-to-end behavior across OS/display configurations is not certified; see the [verification record](docs/VERIFICATION.md).
+| Feature | macOS 13–26 | macOS 27 and later |
+| --- | --- | --- |
+| Three-bar control; right-click help/settings/quit | Available | Available |
+| Select English / Simplified Chinese / System default | Available | Available |
+| Divider sections, auto-hide, hiding shortcut | Experimental; cross-version runtime testing pending | **Disabled** |
+| Choose visible, collapsed, or always hidden per item inside Mino | Not implemented | Not implemented |
+| Disable system `>>` or guarantee Mino stays visible | No such interface | No public interface |
 
-## Features
+### What changes on macOS 27
 
-- Click the Mino button to show or hide items left of its divider.
-- Arrange menu bar items using the native Command-drag gesture.
-- Optional always-hidden section: ordinary toggles never reveal it; a dedicated menu action temporarily shows it.
-- Optional global shortcut: Control–Option–M, with registration errors surfaced.
-- Automatic hiding after 3–60 seconds outside the menu interaction area.
-- Optional launch at login through Apple's `SMAppService` (off by default).
-- English and Simplified Chinese, switchable in Preferences.
-- A misplaced divider pauses hiding to protect access to the control.
-- Display changes and wake expand the divider for recovery.
-- No accounts, analytics, third-party dependencies, or app-initiated network traffic.
-- No Accessibility, Input Monitoring, or Screen Recording permission required.
+macOS shows its own [overflow indicator](https://support.apple.com/en-eg/148830) when space runs out. Inflating dividers leaves large gaps and does not reliably control other apps’ icons. **On macOS 27, version 0.2.1 creates no dot or lock separators and reserves no hiding space. Only the Mino control remains.**
 
-## Install and use
+Click Mino for settings. Right-click for help, macOS Menu Bar Settings, Mino settings, language, and quit. The interface says “Managed by macOS”; it does not report successful hiding when none occurred. Legacy section, always-hidden, auto-hide, and shortcut preferences are preserved but inactive.
 
-Download a ZIP from [Releases](https://github.com/levin8023/mino/releases), unzip, and move Mino.app to Applications. Mino runs in the menu bar without a Dock icon.
+Mino can open System Settings → Menu Bar → Allow in Menu Bar, where you can choose which apps may show icons. You make the change in System Settings. **Removing an app’s menu bar entry differs from a collapsible group.** Apple’s [documented settings](https://support.apple.com/en-ie/guide/mac-help/mchlad96d366/27/mac/27) list no separate switch to disable `>>`. Reducing visible icons may relieve overflow, but cannot guarantee the arrow disappears.
 
-Preview builds are ad-hoc signed, **not Developer ID signed or notarized**. macOS may block them. Verify the checksum and source before following [Apple's opening instructions](https://support.apple.com/en-us/102445), or build locally. Do not disable Gatekeeper globally.
+## Choose a language
 
-1. Quit other menu bar managers temporarily.
-2. Choose **Arrange items** in Mino. The settings window hides and automatic hiding pauses.
-3. Hold Command and move occasional items left of the divider. Keep the three-bar Mino button on its right.
-4. Right-click Mino and choose **Finish arranging and hide**.
+- Every settings page has a **语言 / Language** picker: 简体中文, English, or System default.
+- The main icon’s right-click **语言 / Language** menu also switches immediately and saves your choice locally.
+- Select the [Chinese](README.md) or [English](README.en.md) README above. Usage guides are available in [Chinese](docs/USER_GUIDE.zh-CN.md) and [English](docs/USER_GUIDE.en.md).
 
-The main button shows a compact original three-bar icon without text. Click it or press Control–Option–M to toggle. Right-click either the three-bar Mino button or the vertical-dot divider for Help, Settings, and Quit. Option-click opens settings. Reopening the app also opens settings. Quitting removes Mino's divider and releases menu bar space.
+## Install
+
+Download a ZIP from [Releases](https://github.com/levin8023/mino/releases), verify its SHA-256, unzip, and move Mino.app to Applications. Mino has no Dock icon. Reopening the app opens settings.
+
+Preview builds are ad-hoc signed, **not Developer ID signed or Apple notarized**. macOS may block opening. Build locally, or verify the source and follow [Apple’s per-app opening instructions](https://support.apple.com/en-us/102445).
+
+## Experimental sections on macOS 13–26
+
+Only earlier systems retain the original divider implementation; runtime testing on those systems is pending. Choose Arrange items, then hold Command and arrange left to right:
+
+```text
+[Always-hidden items] [Optional lock divider] [Ordinary hidden items] [⋮] [Mino] [Essentials]
+```
+
+Right-click and choose Finish arranging and hide. Click Mino or press Control–Option–M to toggle the ordinary section. Use the dedicated temporary reveal action for the always-hidden section. The control must remain right of the divider before hiding is allowed. Auto-hide pauses for settings, arranging, menu interaction, and pointer activity in the top 400 points. Quitting releases all spacer space.
+
+This relies on OS layout rather than a guaranteed cross-app visibility API. Notches, application menus, multiple displays, and full screen can affect results. A single-control boundary and in-app per-item configuration still require a verified implementation and are not claimed as supported.
 
 ## Build
 
@@ -49,28 +60,18 @@ cd mino
 open build/Mino.app
 ```
 
-For an Apple silicon + Intel archive with SHA-256 checksum:
+Build an Apple silicon + Intel ZIP with SHA-256:
 
 ```sh
 ARCH=universal ./Scripts/package.sh
 ```
 
-## Limits
+Output is in `dist/`. Build caches, archives, keys, and personal IDE files are excluded from Git. Intel cross-compilation does not establish runtime compatibility.
 
-Mino resizes its own `NSStatusItem` divider so items to its left overflow. No private APIs or third-party process modifications are used. **The resulting overflow behavior is controlled by macOS and is not a guaranteed cross-app hiding API.**
+## Privacy and contributing
 
-Notches, application menus, and screen width can still obscure expanded icons. There is no separate icon panel, search, per-app rules, automatic rearrangement, or auto-updater yet. Some system items cannot be moved. Independent per-display layouts are not supported.
+No accounts, ads, analytics, or app-initiated network traffic. No Accessibility, Input Monitoring, or Screen Recording permission is requested. Preferences use local UserDefaults; optional login launch uses `SMAppService`. Documentation links open in your browser.
 
-Enable Always-hidden section in Preferences, then arrange left to right: always-hidden items → lock divider → ordinary hidden items → vertical-dot divider → three-bar control → essentials. Finish arranging from the menu. Ordinary clicks and the global shortcut reveal only the ordinary section. Use the dedicated context-menu action to temporarily reveal or rehide the always-hidden section. Auto-hide also ends a temporary reveal when enabled.
+Independently implemented under [MIT](LICENSE), without third-party source code or brand assets; see [NOTICE](NOTICE.md). Mino is a provisional name and has not been trademark-cleared.
 
-On macOS 27, [system overflow](https://support.apple.com/en-eg/148830) may collect or reveal any third-party item, including Mino. Bounded-width spacers replace oversized items there. Open the overflow and Command-drag the control toward visible essentials if needed. Public APIs do not let Mino disable system overflow or pin itself permanently. Always-hidden is a Mino interaction policy, not a privacy boundary.
-
-Auto-hide pauses while the pointer is within 400 points of the screen top, a mouse button is held, Mino's menu/settings are open, or arranging is active. It cannot reliably detect every other app's menu; disable auto-hide for unusually long menus. Arranging mode ends only when you choose Finish arranging and hide. Settings must be closed before automatic hiding resumes. Manual toggling remains available.
-
-Keep the app at a stable path before enabling login launch. OS approval, app movement, and signature changes can affect registration. The shortcut is fixed in this version and can be disabled if it conflicts.
-
-See [testing](docs/TESTING.md), [architecture](docs/ARCHITECTURE.md), [release instructions](docs/RELEASING.md), [privacy](PRIVACY.md), and [roadmap](docs/ROADMAP.md).
-
-## Credits
-
-Independently implemented under MIT. The implementation, interface, and icon were created for this project. No third-party source code, logos, or artwork are included. See [NOTICE](NOTICE.md). Mino is a provisional name and has not been trademark-cleared.
+See [contributing](CONTRIBUTING.md), [privacy](PRIVACY.md), [architecture](docs/ARCHITECTURE.md), [testing](docs/TESTING.md), and [roadmap](docs/ROADMAP.md). Include OS version, display configuration, and reproduction steps in issues; omit private screenshots, tokens, and serial numbers.
