@@ -1,0 +1,40 @@
+name: Preview release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  release:
+    runs-on: macos-14
+    timeout-minutes: 25
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Verify version matches tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          VERSION=$(/usr/libexec/PlistBuddy -c 'Print CFBundleShortVersionString' Resources/Info.plist)
+          test "$RELEASE_TAG" = "v$VERSION"
+      - name: Tests
+        run: ./Scripts/test.sh
+      - name: Universal preview archive
+        run: ARCH=universal ./Scripts/package.sh
+      - name: Verify architectures and checksum
+        run: |
+          lipo build/Mino.app/Contents/MacOS/Mino -verify_arch arm64 x86_64
+          cd dist
+          shasum -a 256 -c *.sha256
+      - name: Publish prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$RELEASE_TAG" dist/*.zip dist/*.sha256 --verify-tag --prerelease --title "Mino $RELEASE_TAG · Preview" --notes-file docs/RELEASE_NOTES.md
